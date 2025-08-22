@@ -3,63 +3,514 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>농업e지 경영체교재</title>
+    <title>농업e지 경영체교재 - PDF 전자책 뷰어</title>
+    
+    <!-- 외부 라이브러리 CDN -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/turn.js/3.0.2/turn.min.js"></script>
+    
+    <!-- PDF.js 워커 설정 -->
+    <script>
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+    </script>
+    
+    <!-- 모든 CSS 스타일 -->
     <style>
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        * {
             margin: 0;
             padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Noto Sans KR', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #333;
             min-height: 100vh;
-            display: flex;
-            align-items: center;
-            justify-content: center;
         }
         
-        .container {
+        #viewer-container {
+            width: 100%;
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        /* 헤더 */
+        .header {
             text-align: center;
+            margin-bottom: 20px;
             color: white;
-            max-width: 600px;
-            padding: 40px;
         }
         
-        h1 {
-            font-size: 3em;
-            margin-bottom: 20px;
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
             text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
         }
         
-        p {
+        .header p {
             font-size: 1.2em;
-            margin-bottom: 30px;
             opacity: 0.9;
         }
         
-        .btn {
-            display: inline-block;
-            padding: 15px 30px;
-            background: rgba(255, 255, 255, 0.2);
-            color: white;
-            text-decoration: none;
-            border-radius: 10px;
-            font-size: 1.1em;
-            font-weight: 600;
-            transition: all 0.3s;
+        /* 상단 툴바 */
+        #toolbar {
+            background: rgba(255, 255, 255, 0.95);
             backdrop-filter: blur(10px);
-            border: 1px solid rgba(255, 255, 255, 0.3);
+            padding: 20px;
+            border-radius: 15px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            flex-wrap: wrap;
+            justify-content: center;
         }
         
-        .btn:hover {
-            background: rgba(255, 255, 255, 0.3);
+        #pdf-selector {
+            padding: 12px 16px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 16px;
+            min-width: 250px;
+            background: white;
+            transition: border-color 0.3s;
+        }
+        
+        #pdf-selector:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        
+        #pdf-upload {
+            padding: 10px;
+            border: 2px dashed #667eea;
+            border-radius: 8px;
+            font-size: 14px;
+            background: rgba(102, 126, 234, 0.1);
+        }
+        
+        button {
+            padding: 12px 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 600;
+            transition: all 0.3s;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+        }
+        
+        button:hover {
             transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+        }
+        
+        button:active {
+            transform: translateY(0);
+        }
+        
+        /* 책 영역 */
+        #book-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 700px;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 30px;
+            margin-bottom: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        #book {
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            background: white;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+        
+        .page {
+            background: white;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        .page canvas {
+            max-width: 100%;
+            height: auto;
+            display: block;
+        }
+        
+        /* 하단 컨트롤 */
+        #controls {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            padding: 20px;
+            border-radius: 15px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+            display: flex;
+            gap: 20px;
+            align-items: center;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+        
+        #page-info, #zoom-info {
+            font-weight: bold;
+            font-size: 18px;
+            min-width: 100px;
+            text-align: center;
+            color: #333;
+        }
+        
+        .control-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        /* 로딩 표시 */
+        #loading {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0,0,0,0.9);
+            color: white;
+            padding: 30px 50px;
+            border-radius: 15px;
+            z-index: 1000;
+            font-size: 18px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        .loading-spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255,255,255,.3);
+            border-radius: 50%;
+            border-top-color: #fff;
+            animation: spin 1s ease-in-out infinite;
+            margin-right: 10px;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        /* 반응형 */
+        @media (max-width: 768px) {
+            .header h1 {
+                font-size: 2em;
+            }
+            
+            #toolbar, #controls {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            
+            #book {
+                width: 100% !important;
+                height: auto !important;
+            }
+            
+            #viewer-container {
+                padding: 10px;
+            }
+        }
+        
+        /* 전체화면 모드 */
+        .fullscreen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: 9999;
+            background: white;
+        }
+        
+        .fullscreen #book-container {
+            height: calc(100vh - 200px);
+            margin: 0;
+            border-radius: 0;
         }
     </style>
 </head>
 <body>
-    <div class="container">
-        <h1>📚 농업e지 경영체교재</h1>
-        <p>디지털 전자책으로 편리하게 학습하세요</p>
-        <a href="ebook-viewer.html" class="btn">전자책 보기</a>
+    <div id="viewer-container">
+        <!-- 헤더 -->
+        <div class="header">
+            <h1>📚 농업e지 경영체교재</h1>
+            <p>PDF 전자책 뷰어</p>
+        </div>
+        
+        <!-- 상단 툴바 -->
+        <div id="toolbar">
+            <select id="pdf-selector">
+                <option value="">PDF 선택...</option>
+                <option value="./250808_농업e지_경영체교재_간편.pdf" selected>농업e지 경영체교재</option>
+            </select>
+            <input type="file" id="pdf-upload" accept=".pdf">
+            <button id="fullscreen-btn">🖥️ 전체화면</button>
+        </div>
+        
+        <!-- 책 영역 -->
+        <div id="book-container">
+            <div id="book">
+                <!-- 페이지들이 동적으로 생성됨 -->
+            </div>
+        </div>
+        
+        <!-- 하단 컨트롤 -->
+        <div id="controls">
+            <div class="control-group">
+                <button id="prev-btn">◀ 이전</button>
+                <span id="page-info">1 / 1</span>
+                <button id="next-btn">다음 ▶</button>
+            </div>
+            <div class="control-group">
+                <button id="zoom-out">🔍-</button>
+                <span id="zoom-info">100%</span>
+                <button id="zoom-in">🔍+</button>
+            </div>
+        </div>
+        
+        <!-- 로딩 표시 -->
+        <div id="loading" style="display: none;">
+            <div class="loading-spinner"></div>
+            PDF 로딩 중...
+        </div>
     </div>
+    
+    <!-- 모든 JavaScript 로직 -->
+    <script>
+        // 전역 변수
+        let currentPDF = null;
+        let currentPage = 1;
+        let totalPages = 0;
+        let currentZoom = 1;
+        let isFullscreen = false;
+        
+        // DOM 로드 완료 후 초기화
+        $(document).ready(function() {
+            setupEventListeners();
+            initializeViewer();
+            
+            // 기본 PDF 자동 로드
+            setTimeout(() => {
+                loadPDF('./250808_농업e지_경영체교재_간편.pdf');
+            }, 500);
+        });
+        
+        function setupEventListeners() {
+            // PDF 선택
+            $('#pdf-selector').change(function() {
+                const url = $(this).val();
+                if (url) loadPDF(url);
+            });
+            
+            // 파일 업로드
+            $('#pdf-upload').change(function(e) {
+                const file = e.target.files[0];
+                if (file && file.type === 'application/pdf') {
+                    const url = URL.createObjectURL(file);
+                    loadPDF(url);
+                }
+            });
+            
+            // 컨트롤 버튼들
+            $('#prev-btn').click(() => $('#book').turn('previous'));
+            $('#next-btn').click(() => $('#book').turn('next'));
+            $('#zoom-in').click(() => changeZoom(0.1));
+            $('#zoom-out').click(() => changeZoom(-0.1));
+            $('#fullscreen-btn').click(toggleFullscreen);
+            
+            // 키보드 단축키
+            $(document).keydown(function(e) {
+                switch(e.keyCode) {
+                    case 37: // 왼쪽 화살표
+                        $('#book').turn('previous');
+                        break;
+                    case 39: // 오른쪽 화살표
+                        $('#book').turn('next');
+                        break;
+                    case 38: // 위쪽 화살표
+                        changeZoom(0.1);
+                        break;
+                    case 40: // 아래쪽 화살표
+                        changeZoom(-0.1);
+                        break;
+                    case 27: // ESC
+                        if (isFullscreen) toggleFullscreen();
+                        break;
+                }
+            });
+        }
+        
+        function initializeViewer() {
+            updateUI();
+        }
+        
+        // PDF 로드 함수
+        async function loadPDF(url) {
+            try {
+                showLoading(true);
+                
+                const pdf = await pdfjsLib.getDocument(url).promise;
+                currentPDF = pdf;
+                totalPages = pdf.numPages;
+                currentPage = 1;
+                currentZoom = 1;
+                
+                console.log(`PDF 로드 완료: ${totalPages}페이지`);
+                
+                // Turn.js 초기화
+                initializeTurnJS();
+                
+                showLoading(false);
+                updateUI();
+                
+            } catch (error) {
+                console.error('PDF 로드 실패:', error);
+                showLoading(false);
+                alert('PDF 파일을 로드할 수 없습니다. 파일 경로를 확인해주세요.');
+            }
+        }
+        
+        function initializeTurnJS() {
+            // 기존 Turn.js 인스턴스 제거
+            if ($('#book').turn('instance')) {
+                $('#book').turn('destroy');
+            }
+            
+            // 책 컨테이너 초기화
+            $('#book').empty();
+            
+            // 페이지들 생성
+            for (let i = 1; i <= totalPages; i++) {
+                const pageDiv = $(`<div class="page" id="page-${i}">
+                    <canvas id="canvas-${i}"></canvas>
+                </div>`);
+                $('#book').append(pageDiv);
+            }
+            
+            // Turn.js 초기화
+            $('#book').turn({
+                width: 800,
+                height: 600,
+                autoCenter: true,
+                gradients: true,
+                elevation: 50,
+                acceleration: true,
+                when: {
+                    turned: function(event, page, view) {
+                        currentPage = page;
+                        updateUI();
+                        preloadPages(page);
+                    },
+                    start: function(event, pageObject, corner) {
+                        // 페이지 넘기기 시작
+                    },
+                    turning: function(event, page, view) {
+                        // 페이지 넘기는 중
+                    }
+                }
+            });
+            
+            // 첫 페이지들 렌더링
+            renderPage(1);
+            if (totalPages > 1) renderPage(2);
+        }
+        
+        // 페이지 렌더링
+        async function renderPage(pageNum) {
+            if (!currentPDF || pageNum < 1 || pageNum > totalPages) return;
+            
+            try {
+                const page = await currentPDF.getPage(pageNum);
+                const canvas = document.getElementById(`canvas-${pageNum}`);
+                const context = canvas.getContext('2d');
+                
+                const viewport = page.getViewport({ scale: currentZoom });
+                canvas.width = viewport.width;
+                canvas.height = viewport.height;
+                
+                await page.render({ canvasContext: context, viewport }).promise;
+                
+                console.log(`페이지 ${pageNum} 렌더링 완료`);
+                
+            } catch (error) {
+                console.error(`페이지 ${pageNum} 렌더링 실패:`, error);
+            }
+        }
+        
+        // 페이지 미리 로딩
+        function preloadPages(currentPage) {
+            const pagesToPreload = [];
+            
+            // 현재 페이지 주변 페이지들 미리 로딩
+            for (let i = Math.max(1, currentPage - 2); i <= Math.min(totalPages, currentPage + 2); i++) {
+                const canvas = document.getElementById(`canvas-${i}`);
+                if (canvas && !canvas.getContext('2d').getImageData(0, 0, 1, 1).data[3]) {
+                    pagesToPreload.push(i);
+                }
+            }
+            
+            pagesToPreload.forEach(pageNum => {
+                renderPage(pageNum);
+            });
+        }
+        
+        // 줌 변경
+        function changeZoom(delta) {
+            const newZoom = Math.max(0.5, Math.min(3, currentZoom + delta));
+            if (newZoom !== currentZoom) {
+                currentZoom = newZoom;
+                updateUI();
+                
+                // 현재 페이지들 다시 렌더링
+                const currentPages = $('#book').turn('view');
+                currentPages.forEach(pageNum => {
+                    renderPage(pageNum);
+                });
+            }
+        }
+        
+        // UI 업데이트
+        function updateUI() {
+            $('#page-info').text(`${currentPage} / ${totalPages}`);
+            $('#zoom-info').text(`${Math.round(currentZoom * 100)}%`);
+        }
+        
+        // 로딩 표시
+        function showLoading(show) {
+            $('#loading').toggle(show);
+        }
+        
+        // 전체화면 토글
+        function toggleFullscreen() {
+            if (!isFullscreen) {
+                $('#viewer-container').addClass('fullscreen');
+                $('#fullscreen-btn').text('❌ 종료');
+                isFullscreen = true;
+            } else {
+                $('#viewer-container').removeClass('fullscreen');
+                $('#fullscreen-btn').text('🖥️ 전체화면');
+                isFullscreen = false;
+            }
+        }
+    </script>
 </body>
 </html>
